@@ -62,6 +62,7 @@ class AverageStability(ExplainerMetric):
         # prepare the noisy masks that will be used to generate the neighbors
         nb_variables = np.prod(inputs.shape[1:])
         self.noisy_masks = tf.random.uniform((nb_samples, *inputs.shape[1:]), 0, 1.0 / nb_variables)
+        self.noisy_masks *= radius
 
     def evaluate(self,
                  explainer: Callable,
