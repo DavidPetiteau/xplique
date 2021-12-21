@@ -205,21 +205,29 @@ class DRise(BlackBoxExplainer):
 
     @staticmethod
     @tf.function
-    def _bbox_iou(boxes1: tf.function,
-                  boxes2: tf.function) -> tf.Tensor:
-        boxes1_area = boxes1[..., 2] * boxes1[..., 3]
-        boxes2_area = boxes2[..., 2] * boxes2[..., 3]
-
-        boxes1 = tf.concat([boxes1[..., :2] - boxes1[..., 2:] * 0.5,
-                            boxes1[..., :2] + boxes1[..., 2:] * 0.5], axis=-1)
-        boxes2 = tf.concat([boxes2[..., :2] - boxes2[..., 2:] * 0.5,
-                            boxes2[..., :2] + boxes2[..., 2:] * 0.5], axis=-1)
-
-        left_up = tf.maximum(boxes1[..., :2], boxes2[..., :2])
-        right_down = tf.minimum(boxes1[..., 2:], boxes2[..., 2:])
-
-        inter_section = tf.maximum(right_down - left_up, 0.0)
-        inter_area = inter_section[..., 0] * inter_section[..., 1]
-        union_area = boxes1_area + boxes2_area - inter_area + DRise.EPSILON
-
-        return 1.0 * inter_area / union_area
+    def _bbox_iou(boxA: tf.function,
+                  boxB: tf.function) -> tf.Tensor:
+        """
+        Compute the intersection between two batched bounding boxes.
+        The bounding box is defined by (x1, y1, x2, y2)
+        :param boxA: bounding box 1
+        :param boxB: bounding box 2
+        :return: iou score
+        """
+        # determine the (x, y)-coordinates of the intersection rectangle
+        xA = tf.maximum(boxA[..., 0], boxB[..., 0])
+        yA = tf.maximum(boxA[..., 1], boxB[..., 1])
+        xB = tf.minimum(boxA[..., 2], boxB[..., 2])
+        yB = tf.minimum(boxA[..., 3], boxB[..., 3])
+        # compute the area of intersection rectangle
+        interArea = tf.maximum(0., xB - xA) * tf.maximum(0., yB - yA)
+        # compute the area of both the prediction and ground-truth
+        # rectangles
+        boxAArea = (boxA[..., 2] - boxA[..., 0]) * (boxA[..., 3] - boxA[..., 1])
+        boxBArea = (boxB[..., 2] - boxB[..., 0]) * (boxB[..., 3] - boxB[..., 1])
+        # compute the intersection over union by taking the intersection
+        # area and dividing it by the sum of prediction + ground-truth
+        # areas - the interesection area
+        iou = interArea / (boxAArea + boxBArea - interArea + DRise.EPSILON)
+        # return the intersection over union value
+        return iou
