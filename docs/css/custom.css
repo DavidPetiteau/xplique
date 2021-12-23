@@ -107,6 +107,10 @@ table {
     display: table;
 }
 
+.md-typeset thead:not([class]) {
+    color: white;
+}
+
 table th a {
     color: var(--synthax-red) !important;
     word-break: break-word !important;
