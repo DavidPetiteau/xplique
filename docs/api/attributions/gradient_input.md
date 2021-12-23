@@ -1,5 +1,8 @@
 # Gradient $\odot$ Input
 
+!!!abstract "Tutorial"
+    <p style="text-align: center;">[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1pHuiggijCZ0touf2gEtdM2QsiR4oFJwS?authuser=1)</p>
+
 Gradient $\odot$ Input is a visualization techniques based on the gradient of a class score relative to
 the input, element-wise with the input. This method was introduced by Shrikumar et al., 2016[^1], in
 an old version of their DeepLIFT paper[^2].

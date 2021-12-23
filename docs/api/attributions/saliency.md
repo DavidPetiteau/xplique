@@ -1,6 +1,9 @@
 # Saliency Maps
 
-Saliency is visualization techniques based on the gradient of a class score relative to the
+!!!abstract "Tutorial"
+    <p style="text-align: center;">[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/19oLUjmvrBIMTmNKXcJNbB6pJvkfutLEb?authuser=1)</p>
+
+Saliency is a visualization techniques based on the gradient of a class score relative to the
 input.
 
 !!! quote

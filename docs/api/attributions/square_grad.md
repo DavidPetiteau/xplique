@@ -1,5 +1,8 @@
 # Square Grad
 
+!!!abstract "Tutorial"
+    <p style="text-align: center;">[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/14c0tb_MMNQzpCFyTtaCgQUfG1OpnFPI0?authuser=1)</p>
+
 Similar to SmoothGrad, Square Grad average the square of the gradients.
 
 $$

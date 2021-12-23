@@ -1,5 +1,8 @@
 # Occlusion sensitivity
 
+!!!abstract "Tutorial"
+    <p style="text-align: center;">[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1fmtXSP7K2D_xAEA8h-eyiv0r0g6d__ZL?authuser=1)</p>
+
 The Occlusion sensitivity method sweep a patch that occludes pixels over the
 images, and use the variations of the model prediction to deduce critical areas.[^1]
 
@@ -32,3 +35,7 @@ explanations = method.explain(images, labels)
 
 [^1]: [Visualizing and Understanding Convolutional Networks (2014).](https://arxiv.org/abs/1311.2901)
 [^2]: [Towards better understanding of gradient-based attribution methods for Deep Neural Networks](https://arxiv.org/abs/1711.06104)
+
+!!!info
+    `patch_size` and `patch_stride` will define patch to apply to the original input. Thus, a combination of patches will generate pertubed samples of the original input (masked by patches with `occlusion_value` value).
+    Consequently, the number of pertubed instances of an input depend on those parameters. Too little value of those two arguments on large image might lead to an incredible amount of pertubed samples and increase compuation time. On another hand too huge values might not be accurate enough.

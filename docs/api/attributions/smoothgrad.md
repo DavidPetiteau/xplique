@@ -1,5 +1,8 @@
 # SmoothGrad
 
+!!!abstract "Tutorial"
+    <p style="text-align: center;">[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1kHPB07XExQ0CvTIk51Hm5qS2Vl66OUH2?authuser=1)</p>
+
 SmoothGrad is a gradient-based explanation method, which, as the name suggests, averages the
 gradient at several points corresponding to small perturbations around the point of interest.
 The smoothing effect induced by the average help reducing the visual noise, and hence improve the
