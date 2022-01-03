@@ -47,7 +47,6 @@ class AverageStability(ExplainerMetric):
                  nb_samples: int = 20):
         # pylint: disable=R0913
         super().__init__(model, inputs, targets, batch_size)
-        self.radius = radius
         self.nb_samples = nb_samples
 
         if distance == 'l1':
@@ -61,7 +60,27 @@ class AverageStability(ExplainerMetric):
 
         # prepare the noisy masks that will be used to generate the neighbors
         nb_variables = np.prod(inputs.shape[1:])
-        self.noisy_masks = tf.random.uniform((nb_samples, *inputs.shape[1:]), 0, 1.0 / nb_variables)
+        if distance == 'l1':
+            self.noisy_masks = tf.random.uniform((nb_samples, *inputs.shape[1:]), 0, radius/nb_variables)
+        elif distance == 'l2':
+            self.noisy_masks = tf.random.uniform((nb_samples, *inputs.shape[1:]), 0, np.sqrt(radius/nb_variables))
+        elif hasattr(distance, '__call__'):
+            # find the right radius by evaluating the distance when selecting inputs and by repeating the process
+            epsilon = 1e-6
+            radius_tp = radius
+            radius_min = 0.
+            radius_max = 10 * radius
+            while np.array(self.distance(radius_max, np.zeros(nb_variables))) <= radius:
+                radius_max *= 10
+            while (np.abs(self.distance(radius_tp, np.zeros(nb_variables)) - radius) > epsilon) and (radius_max - radius_min > epsilon):
+                if np.array(self.distance(radius_tp, np.zeros(nb_variables))) > radius:
+                    radius_max = radius_tp
+                    radius_tp = (radius_tp - radius_min)/2
+                else:
+                    radius_min = radius_tp
+                    radius_tp = (radius_max - radius_tp)/2 + radius_min
+            radius = radius_tp
+            self.noisy_masks = tf.random.uniform((nb_samples, *inputs.shape[1:]), 0, radius)
 
     def evaluate(self,
                  explainer: Callable,
