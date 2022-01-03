@@ -65,7 +65,7 @@ class AverageStability(ExplainerMetric):
         elif distance == 'l2':
             self.noisy_masks = tf.random.uniform((nb_samples, *inputs.shape[1:]), 0, np.sqrt(radius/nb_variables))
         elif hasattr(distance, '__call__'):
-            # find the right radius by evaluating the distance when selecting inputs and by repeating the process
+            # find a radius near to the right radius by searching the right distance 
             epsilon = 1e-6
             radius_tp = radius
             radius_min = 0.
