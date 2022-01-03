@@ -625,3 +625,177 @@ class InsertionTS(CausalFidelityTS):
                  ):  # pylint: disable=R0913
         super().__init__(model, inputs, targets, metric, batch_size,
                          "insertion", baseline_mode, steps, max_percentage_perturbed)
+
+
+class CausalFidelity_Tab(ExplanationMetric):
+    """
+    Used to compute the insertion and deletion metrics.
+    
+    Parameters
+    ----------
+    model
+        Model used for computing metric.
+    inputs
+        Input samples under study.
+    targets
+        One-hot encoded labels or regression target (e.g {+1, -1}), one for each sample.
+    batch_size
+        Number of samples to explain at once, if None compute all at once.
+    causal_mode
+        If 'insertion', the path is baseline to original image, for 'deletion' the path is original
+        image to baseline.
+    baseline_mode
+        Value of the baseline state, will be called with the inputs if it is a function.
+    steps
+        Number of steps between the start and the end state.
+    """
+
+    def __init__(self,
+                 model: tf.keras.Model,
+                 inputs: Union[tf.data.Dataset, tf.Tensor, np.ndarray],
+                 targets: Optional[Union[tf.Tensor, np.ndarray]] = None,
+                 batch_size: Optional[int] = 64,
+                 causal_mode: str = "deletion",
+                 baseline_mode: Union[float, Callable] = 0.0,
+                 steps: int = 10,
+                 ):
+        super().__init__(model, inputs, targets, batch_size)
+        self.causal_mode = causal_mode
+        self.baseline_mode = baseline_mode
+        self.steps = steps
+
+        self.nb_features = np.prod(inputs.shape[-1])
+        self.inputs_flatten = inputs  #.reshape((len(inputs), self.nb_features, inputs.shape[-1]))
+
+    def evaluate(self,
+                 explanations: Union[tf.Tensor, np.ndarray]) -> float:
+        """
+        Evaluate the causal score.
+
+        Parameters
+        ----------
+        explanations
+            Explanation for the inputs, labels to evaluate.
+        Returns
+        -------
+        causal_score
+            Metric score, area over the deletion (lower is better) or insertion (higher is
+            better) curve.
+        """
+        explanations = np.array(explanations)
+        assert len(explanations) == len(self.inputs), "The number of explanations must be the " \
+                                                      "same as the number of inputs"
+        # the reference does not specify how to manage the channels of the explanations
+        if len(explanations.shape) == 4:
+            explanations = np.mean(explanations, -1)
+
+        explanations_flatten = explanations.reshape((len(explanations), -1))
+
+        # for each sample, sort by most important features according to the explanation
+        most_important_features = np.argsort(explanations_flatten, axis=-1)[:, ::-1]
+
+        baselines = self.baseline_mode(self.inputs) if isfunction(self.baseline_mode) else \
+            np.ones_like(self.inputs, dtype=np.float32) * self.baseline_mode
+        baselines_flatten = baselines.reshape(self.inputs_flatten.shape)
+
+        steps = np.linspace(0, self.nb_features, self.steps, dtype=np.int32)
+
+        scores = []
+        if self.causal_mode == "deletion":
+            start = self.inputs_flatten
+            end = baselines_flatten
+        elif self.causal_mode == "insertion":
+            start = baselines_flatten
+            end = self.inputs_flatten
+        else:
+            raise NotImplementedError(f'Unknown causal mode `{self.causal_mode}`.')
+
+        for step in steps:
+            ids_to_flip = most_important_features[:, :step]
+            batch_inputs = start.copy()
+
+            for i, ids in enumerate(ids_to_flip):
+                batch_inputs[i, ids] = end[i, ids]
+
+            batch_inputs = batch_inputs.reshape((-1, *self.inputs.shape[1:]))
+
+            predictions = batch_predictions_one_hot(self.model, batch_inputs,
+                                                    self.targets, self.batch_size)
+            scores.append(predictions)
+
+        auc = np.trapz(np.mean(scores, -1), steps / self.nb_features)
+
+        return auc
+
+
+class Deletion_Tab(CausalFidelity_Tab):
+    """
+    The deletion metric measures the drop in the probability of a class as important pixels (given
+    by the saliency map) are gradually removed from the image. A sharp drop, and thus a small
+    area under the probability curve, are indicative of a good explanation.
+    Ref. Petsiuk & al., RISE: Randomized Input Sampling for Explanation of Black-box Models (2018).
+    https://arxiv.org/pdf/1806.07421.pdf
+
+    Parameters
+    ----------
+    model
+        Model used for computing metric.
+    inputs
+        Input samples under study.
+    targets
+        One-hot encoded labels or regression target (e.g {+1, -1}), one for each sample.
+    batch_size
+        Number of samples to explain at once, if None compute all at once.
+    baseline_mode
+        Value of the baseline state, will be called with the inputs if it is a function.
+    steps
+        Number of steps between the start and the end state.
+    """
+
+    def __init__(self,
+                 model: tf.keras.Model,
+                 inputs: Union[tf.data.Dataset, tf.Tensor, np.ndarray],
+                 targets: Optional[Union[tf.Tensor, np.ndarray]] = None,
+                 batch_size: Optional[int] = 64,
+                 baseline_mode: Union[float, Callable] = 0.0,
+                 steps: int = 10,
+                 ):
+        super().__init__(model, inputs, targets, batch_size, "deletion", baseline_mode, steps)
+
+
+class Insertion_Tab(CausalFidelity_Tab):
+    """
+    The insertion metric, on the other hand, captures the importance of the pixels in terms of
+    their ability to synthesize an image and is measured by the rise in the probability of the
+    class of interest as pixels are added according to the generated importance map.
+    Ref. Petsiuk & al., RISE: Randomized Input Sampling for Explanation of Black-box Models (2018).
+    https://arxiv.org/pdf/1806.07421.pdf
+    Parameters
+    ----------
+    model
+        Model used for computing metric.
+    inputs
+        Input samples under study.
+    targets
+        One-hot encoded labels or regression target (e.g {+1, -1}), one for each sample.
+    batch_size
+        Number of samples to explain at once, if None compute all at once.
+    baseline_mode
+        Value of the baseline state, will be called with the inputs if it is a function.
+    steps
+        Number of steps between the start and the end state.
+    max_percentage_perturbed
+        Maximum percentage of the input perturbed.
+    """
+
+    def __init__(self,
+                 model: tf.keras.Model,
+                 inputs: Union[tf.data.Dataset, tf.Tensor, np.ndarray],
+                 targets: Optional[Union[tf.Tensor, np.ndarray]] = None,
+                 batch_size: Optional[int] = 64,
+                 baseline_mode: Union[float, Callable] = 0.0,
+                 steps: int = 10,
+                 max_percentage_perturbed: float = 1.0
+                 ):
+        super().__init__(model, inputs, targets, batch_size, "insertion", baseline_mode, steps)
+
